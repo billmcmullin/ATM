@@ -19,14 +19,15 @@ TEST_BIN = unit_tests
 
 PROD_LIB = ATM.a
 
-# Parasoft tooling placeholders (override on command line or edit here)
-# Example:
-#   make coverage CPPT_COMPILER_WRAPPER=/opt/parasoft/cpptest/bin/cpptest_wrapper \
-#                CPPT_REPORT_TOOL=/opt/parasoft/cpptest/bin/cpptest_report
-CPPT_COMPILER_WRAPPER ?= /opt/parasoft/cpptest/bin/cpptest_wrapper
-CPPT_REPORT_TOOL ?= /opt/parasoft/cpptest/bin/cpptest_report
-# If your Parasoft tool requires additional args (project location, credentials etc.)
-CPPT_REPORT_ARGS ?=
+# Parasoft coverage integration variables (adjust as needed)
+# cpptestcc must be on PATH or provide full path:
+CPPT_COMPILER ?= cpptestcc
+# Example flags: -compiler <compiler-id> -line-coverage -workspace <path-to-workspace> --
+# Note: ensure CPPT_WORKSPACE is writable by the build user
+CPPT_WORKSPACE ?= $(shell pwd)/parasoft_workspace
+CPPT_COMPILER_FLAGS ?= -compiler gcc_9-64 -line-coverage -workspace $(CPPT_WORKSPACE) --
+# Path to Parasoft runtime library to append to link (override if installed elsewhere)
+CPPT_COV_LIB ?= /opt/parasoft/cpptest/runtime/lib/cpptest.a
 
 .PHONY: clean all build-tests test compile coverage
 
@@ -61,25 +62,29 @@ build-tests: $(TEST_BIN)
 test: build-tests
 	./$(TEST_BIN)
 
-# Coverage target:
-# - If the Parasoft compiler wrapper & report tool exist and are executable, use Parasoft flow.
-# - Otherwise, fall back to lcov/genhtml coverage collection.
+# Coverage target using Parasoft cpptestcc integration (per Parasoft docs)
+# If cpptestcc is available, this will:
+#  - clean
+#  - rebuild using cpptestcc as the CXX wrapper (instrumentation)
+#  - ensure the Parasoft runtime library is linked by appending CPPT_COV_LIB to LDFLAGS
+#  - run unit tests (test results are produced; coverage data is written into the Parasoft workspace)
+# If cpptestcc is not available, fallback to lcov-based coverage (requires lcov & genhtml).
 coverage:
-	@echo "=== Coverage: checking for Parasoft tooling at $(CPPT_COMPILER_WRAPPER) and $(CPPT_REPORT_TOOL) ==="
-	@if [ -x "$(CPPT_COMPILER_WRAPPER)" ] && [ -x "$(CPPT_REPORT_TOOL)" ]; then \
-		echo "Parasoft compiler wrapper and report tool found."; \
-		echo "=== Rebuilding with Parasoft instrumentation ==="; \
+	@echo "=== Coverage: checking for Parasoft cpptestcc ($(CPPT_COMPILER)) ==="
+	@if command -v $(CPPT_COMPILER) >/dev/null 2>&1 ; then \
+		echo "Parasoft cpptestcc found."; \
+		echo "=== Preparing Parasoft workspace: $(CPPT_WORKSPACE) ==="; \
+		mkdir -p $(CPPT_WORKSPACE); \
+		echo "=== Rebuilding with Parasoft instrumentation (CXX overridden) ==="; \
 		$(MAKE) clean; \
-		# Rebuild using Parasoft compiler wrapper (override CC/CXX for the recursive make)
-		CC="$(CPPT_COMPILER_WRAPPER)" CXX="$(CPPT_COMPILER_WRAPPER)" $(MAKE) build-tests; \
-		echo "=== Running unit tests ==="; \
+		# Use cpptestcc as the compiler wrapper. The CXX variable is overridden for the recursive make.
+		CXX="$(CPPT_COMPILER) $(CPPT_COMPILER_FLAGS) g++" LDFLAGS="$(LDFLAGS) $(CPPT_COV_LIB)" $(MAKE) build-tests; \
+		echo "=== Running instrumented unit tests (coverage data will be stored in Parasoft workspace) ==="; \
 		mkdir -p coverage; \
 		./$(TEST_BIN) --gtest_output=xml:coverage/gtest-results-parasoft.xml || true; \
-		echo "=== Invoking Parasoft report/collector tool ==="; \
-		$(CPPT_REPORT_TOOL) $(CPPT_REPORT_ARGS) --input coverage/gtest-results-parasoft.xml --output coverage/parasoft || true; \
-		echo "Parasoft coverage collection complete (see coverage/parasoft or Parasoft reports)"; \
+		echo "Parasoft coverage instrumentation complete. Coverage data and workspace files are in $(CPPT_WORKSPACE)."; \
 	else \
-		echo "Parasoft tooling not found or not executable at $(CPPT_COMPILER_WRAPPER) / $(CPPT_REPORT_TOOL). Falling back to lcov."; \
+		echo "Parasoft cpptestcc not found. Falling back to lcov."; \
 		$(MAKE) clean; \
 		echo "=== Building instrumented binaries for lcov ==="; \
 		$(MAKE) build-tests COVERAGE=1 CFLAGS="--coverage -O0 -g" LDFLAGS="--coverage"; \
@@ -95,4 +100,4 @@ coverage:
 	fi
 
 clean:
-	rm -rf $(OBJ_DIR) $(GTEST_BUILD_DIR) $(TEST_BIN) $(PROD_LIB) coverage *.info
+	rm -rf $(OBJ_DIR) $(GTEST_BUILD_DIR) $(TEST_BIN) $(PROD_LIB) coverage $(CPPT_WORKSPACE) *.info
