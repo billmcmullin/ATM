@@ -32,8 +32,6 @@ CPPT_REPORT_ARGS ?=
 
 all : $(OBJ_DIR) $(OBJ)
 
-# New target: compile production code and create a static archive
-# Usage: make compile
 compile: $(PROD_LIB)
 
 $(PROD_LIB): $(OBJ)
@@ -52,7 +50,7 @@ $(OBJ_DIR)/%.o : %.cxx | $(OBJ_DIR)
 $(GTEST_BUILD_DIR)/%.o: $(GTEST_DIR)/%.cxx | $(GTEST_BUILD_DIR)
 	$(CC) $(CFLAGS) $(INCLUDE_FLAGS) -o $@ -c $<
 
-# Build & link the test binary (links production objects and test objects)
+# Build & link the test binary (links production objects + test objects)
 $(TEST_BIN): $(OBJ) $(GTEST_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^ $(GTEST_LIBS)
 
@@ -64,30 +62,24 @@ test: build-tests
 	./$(TEST_BIN)
 
 # Coverage target:
-# - If the Parasoft compiler wrapper exists and is executable, use Parasoft flow:
-#     * rebuild with Parasoft instrumentation wrapper (by setting CC/CXX to the wrapper)
-#     * run the tests (you can also instruct Parasoft to collect coverage)
-#     * invoke the Parasoft report/collector tool to generate Parasoft coverage output
-# - Otherwise falls back to lcov/genhtml (requires lcov installed)
+# - If the Parasoft compiler wrapper & report tool exist and are executable, use Parasoft flow.
+# - Otherwise, fall back to lcov/genhtml coverage collection.
 coverage:
-	@echo "=== Coverage: checking for Parasoft tooling at $(CPPT_COMPILER_WRAPPER) ==="
-	if [ -x "$(CPPT_COMPILER_WRAPPER)" ] && [ -x "$(CPPT_REPORT_TOOL)" ]; then \
+	@echo "=== Coverage: checking for Parasoft tooling at $(CPPT_COMPILER_WRAPPER) and $(CPPT_REPORT_TOOL) ==="
+	@if [ -x "$(CPPT_COMPILER_WRAPPER)" ] && [ -x "$(CPPT_REPORT_TOOL)" ]; then \
 		echo "Parasoft compiler wrapper and report tool found."; \
 		echo "=== Rebuilding with Parasoft instrumentation ==="; \
 		$(MAKE) clean; \
-		# Rebuild using Parasoft compiler wrapper; adjust env var name if your wrapper expects different invocation
-		# Note: some Parasoft installations provide a compiler wrapper that acts like 'gcc' or 'g++'.
+		# Rebuild using Parasoft compiler wrapper (override CC/CXX for the recursive make)
 		CC="$(CPPT_COMPILER_WRAPPER)" CXX="$(CPPT_COMPILER_WRAPPER)" $(MAKE) build-tests; \
 		echo "=== Running unit tests ==="; \
 		mkdir -p coverage; \
 		./$(TEST_BIN) --gtest_output=xml:coverage/gtest-results-parasoft.xml || true; \
 		echo "=== Invoking Parasoft report/collector tool ==="; \
-		# The exact command below is a placeholder. Replace with the exact CLI as per your Parasoft docs.
-		"$(CPPT_REPORT_TOOL)" $(CPPT_REPORT_ARGS) --input coverage/gtest-results-parasoft.xml --output coverage/parasoft || true; \
+		$(CPPT_REPORT_TOOL) $(CPPT_REPORT_ARGS) --input coverage/gtest-results-parasoft.xml --output coverage/parasoft || true; \
 		echo "Parasoft coverage collection complete (see coverage/parasoft or Parasoft reports)"; \
 	else \
 		echo "Parasoft tooling not found or not executable at $(CPPT_COMPILER_WRAPPER) / $(CPPT_REPORT_TOOL). Falling back to lcov."; \
-		# fallback lcov flow
 		$(MAKE) clean; \
 		echo "=== Building instrumented binaries for lcov ==="; \
 		$(MAKE) build-tests COVERAGE=1 CFLAGS="--coverage -O0 -g" LDFLAGS="--coverage"; \
