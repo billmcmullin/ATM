@@ -47,7 +47,7 @@ TEST(ATMTest, ShowBalance_DisplaysCurrentBalance)
     atm.viewAccount(0, "pw");
 
     CoutCapture cap;
-    atm.fillUserRequest(static_cast<UserRequest>(0), 0.0); // REQUEST_BALANCE assumed to be 0
+    atm.showBalance(); // call directly instead of using UserRequest enum
     std::string out = cap.str();
 
     EXPECT_NE(out.find("Current Balance"), std::string::npos);
@@ -67,19 +67,19 @@ TEST(ATMTest, MakeDepositAndWithdraw_UpdateBalanceAndDisplay)
 
     atm.viewAccount(0, "pw");
 
-    // Deposit 50
+    // Deposit 50 by calling makeDeposit directly
     {
         CoutCapture cap;
-        atm.fillUserRequest(static_cast<UserRequest>(1), 50.0); // REQUEST_DEPOSIT assumed to be 1
+        atm.makeDeposit(50.0);
         std::string out = cap.str();
         EXPECT_NE(out.find("Updated Balance"), std::string::npos);
         EXPECT_NE(out.find("150"), std::string::npos);
     }
 
-    // Withdraw 20
+    // Withdraw 20 by calling withdraw directly
     {
         CoutCapture cap;
-        atm.fillUserRequest(static_cast<UserRequest>(2), 20.0); // REQUEST_WITHDRAW assumed to be 2
+        atm.withdraw(20.0);
         std::string out = cap.str();
         EXPECT_NE(out.find("Updated Balance"), std::string::npos);
         EXPECT_NE(out.find("130"), std::string::npos);
@@ -102,7 +102,7 @@ TEST(ATMTest, WithdrawMoreThanBalance_PreventNegativeBalance)
     atm.viewAccount(0, "pw");
 
     CoutCapture cap;
-    atm.fillUserRequest(static_cast<UserRequest>(2), 50.0); // withdraw
+    atm.withdraw(50.0); // call withdraw directly
     std::string out = cap.str();
 
     EXPECT_GE(acc->getBalance(), 0.0);
@@ -122,7 +122,7 @@ TEST(ATMTest, DepositNegativeAmountRejected)
     atm.viewAccount(0, "pw");
 
     CoutCapture cap;
-    atm.fillUserRequest(static_cast<UserRequest>(1), -30.0); // deposit
+    atm.makeDeposit(-30.0); // call makeDeposit directly with negative amount
     std::string out = cap.str();
 
     EXPECT_DOUBLE_EQ(acc->getBalance(), 80.0);
