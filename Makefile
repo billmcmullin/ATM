@@ -21,11 +21,11 @@ PROD_LIB = ATM.a
 
 # Parasoft coverage integration variables (adjust as needed)
 # Set CPPT_COMPILER to the full path of cpptestcc on your Jenkins agent if not on PATH.
-CPPT_COMPILER ?= cpptestcc
+CPPT_COMPILER ?= /home/jenkins/agent/cpptest/bin/cpptestcc
 CPPT_WORKSPACE ?= $(shell pwd)/parasoft_workspace
 CPPT_COMPILER_FLAGS ?= -compiler gcc_9-64 -line-coverage -workspace $(CPPT_WORKSPACE) --
 # If your Parasoft installation requires linking an additional runtime library, set CPPT_COV_LIB.
-CPPT_COV_LIB ?= /opt/parasoft/cpptest/runtime/lib/cpptest.a
+CPPT_COV_LIB ?= /home/jenkins/agent/workspace/ATM/unit_tests
 
 .PHONY: clean all build-tests test compile coverage
 
