@@ -17,9 +17,9 @@ TEST(BankTest, GetAccountReturnsAccountWhenPasswordMatches)
     Account *acc = bank.addAccount();
     ASSERT_NE(acc, nullptr);
 
-    acc->setPassword(std::string("s3cr3t"));
+    acc->setPassword("s3cr3t"); // pass const char*
 
-    Account *got = bank.getAccount(0, std::string("s3cr3t"));
+    Account *got = bank.getAccount(0, "s3cr3t");
     EXPECT_EQ(got, acc);
 }
 
@@ -29,15 +29,15 @@ TEST(BankTest, GetAccountReturnsNullOnWrongPassword)
     Account *acc = bank.addAccount();
     ASSERT_NE(acc, nullptr);
 
-    acc->setPassword(std::string("right"));
+    acc->setPassword("right");
 
-    Account *got = bank.getAccount(0, std::string("wrong"));
+    Account *got = bank.getAccount(0, "wrong");
     EXPECT_EQ(got, nullptr);
 }
 
 TEST(BankTest, GetAccountOutOfRangeReturnsNull)
 {
     Bank bank;
-    Account *got = bank.getAccount(999, std::string("whatever"));
+    Account *got = bank.getAccount(999, "whatever");
     EXPECT_EQ(got, nullptr);
 }

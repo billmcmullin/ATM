@@ -27,7 +27,7 @@ TEST(ATMTest, ViewAccount_InvalidAccount_ShowsInvalidMessage)
     ATM atm(&bank, &display);
 
     CoutCapture cap;
-    atm.viewAccount(123, std::string("nopass"));
+    atm.viewAccount(123, "nopass"); // pass const char*
     std::string out = cap.str();
 
     EXPECT_NE(out.find("Invalid account"), std::string::npos);
@@ -41,13 +41,13 @@ TEST(ATMTest, ShowBalance_DisplaysCurrentBalance)
 
     Account *acc = bank.addAccount();
     ASSERT_NE(acc, nullptr);
-    acc->setPassword(std::string("pw"));
+    acc->setPassword("pw"); // pass const char*
     acc->deposit(314.0);
 
-    atm.viewAccount(0, std::string("pw"));
+    atm.viewAccount(0, "pw");
 
     CoutCapture cap;
-    atm.fillUserRequest(REQUEST_BALANCE, 0.0);
+    atm.fillUserRequest(static_cast<UserRequest>(0), 0.0); // REQUEST_BALANCE assumed to be 0
     std::string out = cap.str();
 
     EXPECT_NE(out.find("Current Balance"), std::string::npos);
@@ -62,15 +62,15 @@ TEST(ATMTest, MakeDepositAndWithdraw_UpdateBalanceAndDisplay)
 
     Account *acc = bank.addAccount();
     ASSERT_NE(acc, nullptr);
-    acc->setPassword(std::string("pw"));
+    acc->setPassword("pw");
     acc->deposit(100.0);
 
-    atm.viewAccount(0, std::string("pw"));
+    atm.viewAccount(0, "pw");
 
     // Deposit 50
     {
         CoutCapture cap;
-        atm.fillUserRequest(REQUEST_DEPOSIT, 50.0);
+        atm.fillUserRequest(static_cast<UserRequest>(1), 50.0); // REQUEST_DEPOSIT assumed to be 1
         std::string out = cap.str();
         EXPECT_NE(out.find("Updated Balance"), std::string::npos);
         EXPECT_NE(out.find("150"), std::string::npos);
@@ -79,7 +79,7 @@ TEST(ATMTest, MakeDepositAndWithdraw_UpdateBalanceAndDisplay)
     // Withdraw 20
     {
         CoutCapture cap;
-        atm.fillUserRequest(REQUEST_WITHDRAW, 20.0);
+        atm.fillUserRequest(static_cast<UserRequest>(2), 20.0); // REQUEST_WITHDRAW assumed to be 2
         std::string out = cap.str();
         EXPECT_NE(out.find("Updated Balance"), std::string::npos);
         EXPECT_NE(out.find("130"), std::string::npos);
@@ -96,13 +96,13 @@ TEST(ATMTest, WithdrawMoreThanBalance_PreventNegativeBalance)
 
     Account *acc = bank.addAccount();
     ASSERT_NE(acc, nullptr);
-    acc->setPassword(std::string("pw"));
+    acc->setPassword("pw");
     acc->deposit(25.0);
 
-    atm.viewAccount(0, std::string("pw"));
+    atm.viewAccount(0, "pw");
 
     CoutCapture cap;
-    atm.fillUserRequest(REQUEST_WITHDRAW, 50.0);
+    atm.fillUserRequest(static_cast<UserRequest>(2), 50.0); // withdraw
     std::string out = cap.str();
 
     EXPECT_GE(acc->getBalance(), 0.0);
@@ -116,13 +116,13 @@ TEST(ATMTest, DepositNegativeAmountRejected)
 
     Account *acc = bank.addAccount();
     ASSERT_NE(acc, nullptr);
-    acc->setPassword(std::string("pw"));
+    acc->setPassword("pw");
     acc->deposit(80.0);
 
-    atm.viewAccount(0, std::string("pw"));
+    atm.viewAccount(0, "pw");
 
     CoutCapture cap;
-    atm.fillUserRequest(REQUEST_DEPOSIT, -30.0);
+    atm.fillUserRequest(static_cast<UserRequest>(1), -30.0); // deposit
     std::string out = cap.str();
 
     EXPECT_DOUBLE_EQ(acc->getBalance(), 80.0);
