@@ -20,14 +20,12 @@ TEST_BIN = unit_tests
 PROD_LIB = ATM.a
 
 # Parasoft coverage integration variables (adjust as needed)
-# cpptestcc must be on PATH or provide full path:
-CPPT_COMPILER ?= /home/jenkins/agent/cpptest/bin/cpptestcc
-# Example flags: -compiler <compiler-id> -line-coverage -workspace <path-to-workspace> --
-# Note: ensure CPPT_WORKSPACE is writable by the build user
+# Set CPPT_COMPILER to the full path of cpptestcc on your Jenkins agent if not on PATH.
+CPPT_COMPILER ?= cpptestcc
 CPPT_WORKSPACE ?= $(shell pwd)/parasoft_workspace
 CPPT_COMPILER_FLAGS ?= -compiler gcc_9-64 -line-coverage -workspace $(CPPT_WORKSPACE) --
-# Path to Parasoft runtime library to append to link (override if installed elsewhere)
-CPPT_COV_LIB ?= /home/jenkins/agent/workspace/ATM/cpptest.a
+# If your Parasoft installation requires linking an additional runtime library, set CPPT_COV_LIB.
+CPPT_COV_LIB ?= /opt/parasoft/cpptest/runtime/lib/cpptest.a
 
 .PHONY: clean all build-tests test compile coverage
 
@@ -62,41 +60,25 @@ build-tests: $(TEST_BIN)
 test: build-tests
 	./$(TEST_BIN)
 
-# Coverage target using Parasoft cpptestcc integration (per Parasoft docs)
-# If cpptestcc is available, this will:
-#  - clean
-#  - rebuild using cpptestcc as the CXX wrapper (instrumentation)
-#  - ensure the Parasoft runtime library is linked by appending CPPT_COV_LIB to LDFLAGS
-#  - run unit tests (test results are produced; coverage data is written into the Parasoft workspace)
-# If cpptestcc is not available, fallback to lcov-based coverage (requires lcov & genhtml).
+# Coverage target using Parasoft C/C++test instrumentation only (no lcov fallback).
+# This target fails if cpptestcc is not found.
 coverage:
-	@echo "=== Coverage: checking for Parasoft cpptestcc ($(CPPT_COMPILER)) ==="
-	@if command -v $(CPPT_COMPILER) >/dev/null 2>&1 ; then \
+	@echo "=== Coverage: checking for Parasoft cpptestcc ($(CPPT_COMPILER)) ==="; \
+	if command -v "$(CPPT_COMPILER)" >/dev/null 2>&1; then \
 		echo "Parasoft cpptestcc found."; \
-		echo "=== Preparing Parasoft workspace: $(CPPT_WORKSPACE) ==="; \
-		mkdir -p $(CPPT_WORKSPACE); \
-		echo "=== Rebuilding with Parasoft instrumentation (CXX overridden) ==="; \
+		echo "Preparing Parasoft workspace: $(CPPT_WORKSPACE)"; \
+		mkdir -p "$(CPPT_WORKSPACE)"; \
+		echo "Cleaning previous build artifacts"; \
 		$(MAKE) clean; \
-		# Use cpptestcc as the compiler wrapper. The CXX variable is overridden for the recursive make.
-		CXX="$(CPPT_COMPILER) $(CPPT_COMPILER_FLAGS) g++" LDFLAGS="$(LDFLAGS) $(CPPT_COV_LIB)" $(MAKE) build-tests; \
-		echo "=== Running instrumented unit tests (coverage data will be stored in Parasoft workspace) ==="; \
+		echo "Rebuilding with Parasoft instrumentation (overriding CC/CXX)"; \
+		CC="$(CPPT_COMPILER) $(CPPT_COMPILER_FLAGS) g++" CXX="$(CPPT_COMPILER) $(CPPT_COMPILER_FLAGS) g++" LDFLAGS="$(LDFLAGS) $(CPPT_COV_LIB)" $(MAKE) build-tests; \
+		echo "Running instrumented unit tests (coverage data will be written into Parasoft workspace)"; \
 		mkdir -p coverage; \
 		./$(TEST_BIN) --gtest_output=xml:coverage/gtest-results-parasoft.xml || true; \
-		echo "Parasoft coverage instrumentation complete. Coverage data and workspace files are in $(CPPT_WORKSPACE)."; \
+		echo "Parasoft coverage instrumentation complete. Inspect workspace at: $(CPPT_WORKSPACE)"; \
 	else \
-		echo "Parasoft cpptestcc not found. Falling back to lcov."; \
-		$(MAKE) clean; \
-		echo "=== Building instrumented binaries for lcov ==="; \
-		$(MAKE) build-tests COVERAGE=1 CFLAGS="--coverage -O0 -g" LDFLAGS="--coverage"; \
-		echo "=== Running tests (generating gtest XML) ==="; \
-		mkdir -p coverage; \
-		./$(TEST_BIN) --gtest_output=xml:coverage/gtest-results.xml || true; \
-		echo "=== Capturing coverage with lcov ==="; \
-		lcov --quiet --capture --directory . --output-file coverage/coverage.info; \
-		lcov --quiet --remove coverage/coverage.info '/usr/*' '*/gtest/*' --output-file coverage/coverage.info; \
-		echo "=== Generating HTML report ==="; \
-		genhtml coverage/coverage.info --output-directory coverage/html || true; \
-		echo "LCOV coverage report generated at coverage/html/index.html"; \
+		echo "ERROR: Parasoft cpptestcc not found at '$(CPPT_COMPILER)'. Please install Parasoft C/C++test or set CPPT_COMPILER to the cpptestcc path."; \
+		exit 1; \
 	fi
 
 clean:
