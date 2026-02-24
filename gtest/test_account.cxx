@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include <string>
 #include "../include/Account.hxx"
 
 // Basic behavior tests for Account::deposit and Account::debit
@@ -24,7 +23,7 @@ TEST(AccountTest, DebitDecreasesBalanceAndReturnsNewBalance)
     EXPECT_DOUBLE_EQ(a.getBalance(), 125.0);
 }
 
-// Failure-case tests (intended assertions; may require production changes)
+// Failure-case tests (express intended behavior; adjust to desired policy)
 
 // Negative deposits should be rejected (balance unchanged)
 TEST(AccountTest, RejectNegativeDeposit)
@@ -33,6 +32,7 @@ TEST(AccountTest, RejectNegativeDeposit)
     a.deposit(100.0);
     double before = a.getBalance();
     double ret = a.deposit(-50.0);
+    // Intended behavior: negative deposit not allowed -> balance unchanged.
     EXPECT_DOUBLE_EQ(ret, before);
     EXPECT_DOUBLE_EQ(a.getBalance(), before);
 }
@@ -54,6 +54,7 @@ TEST(AccountTest, PreventOverdraw)
     Account a;
     a.deposit(50.0);
     double ret = a.debit(100.0);
+    // Intended policy: prevent negative balance
     EXPECT_GE(ret, 0.0);
     EXPECT_GE(a.getBalance(), 0.0);
 }

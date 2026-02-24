@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include <string>
 #include "../include/Bank.hxx"
 #include "../include/Account.hxx"
 

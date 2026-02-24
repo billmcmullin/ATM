@@ -27,7 +27,7 @@ TEST(ATMTest, ViewAccount_InvalidAccount_ShowsInvalidMessage)
     ATM atm(&bank, &display);
 
     CoutCapture cap;
-    atm.viewAccount(123, "nopass"); // pass const char*
+    atm.viewAccount(123, "nopass");
     std::string out = cap.str();
 
     EXPECT_NE(out.find("Invalid account"), std::string::npos);
@@ -41,13 +41,13 @@ TEST(ATMTest, ShowBalance_DisplaysCurrentBalance)
 
     Account *acc = bank.addAccount();
     ASSERT_NE(acc, nullptr);
-    acc->setPassword("pw"); // pass const char*
+    acc->setPassword("pw");
     acc->deposit(314.0);
 
     atm.viewAccount(0, "pw");
 
     CoutCapture cap;
-    atm.showBalance(); // call directly instead of using UserRequest enum
+    atm.fillUserRequest(ATM::REQUEST_BALANCE, 0.0);
     std::string out = cap.str();
 
     EXPECT_NE(out.find("Current Balance"), std::string::npos);
@@ -67,19 +67,19 @@ TEST(ATMTest, MakeDepositAndWithdraw_UpdateBalanceAndDisplay)
 
     atm.viewAccount(0, "pw");
 
-    // Deposit 50 by calling makeDeposit directly
+    // Deposit 50
     {
         CoutCapture cap;
-        atm.makeDeposit(50.0);
+        atm.fillUserRequest(ATM::REQUEST_DEPOSIT, 50.0);
         std::string out = cap.str();
         EXPECT_NE(out.find("Updated Balance"), std::string::npos);
         EXPECT_NE(out.find("150"), std::string::npos);
     }
 
-    // Withdraw 20 by calling withdraw directly
+    // Withdraw 20
     {
         CoutCapture cap;
-        atm.withdraw(20.0);
+        atm.fillUserRequest(ATM::REQUEST_WITHDRAW, 20.0);
         std::string out = cap.str();
         EXPECT_NE(out.find("Updated Balance"), std::string::npos);
         EXPECT_NE(out.find("130"), std::string::npos);
@@ -102,7 +102,7 @@ TEST(ATMTest, WithdrawMoreThanBalance_PreventNegativeBalance)
     atm.viewAccount(0, "pw");
 
     CoutCapture cap;
-    atm.withdraw(50.0); // call withdraw directly
+    atm.fillUserRequest(ATM::REQUEST_WITHDRAW, 50.0);
     std::string out = cap.str();
 
     EXPECT_GE(acc->getBalance(), 0.0);
@@ -122,7 +122,7 @@ TEST(ATMTest, DepositNegativeAmountRejected)
     atm.viewAccount(0, "pw");
 
     CoutCapture cap;
-    atm.makeDeposit(-30.0); // call makeDeposit directly with negative amount
+    atm.fillUserRequest(ATM::REQUEST_DEPOSIT, -30.0);
     std::string out = cap.str();
 
     EXPECT_DOUBLE_EQ(acc->getBalance(), 80.0);
